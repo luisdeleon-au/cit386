@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Issuing a token. CIT 386 Module 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Questrial&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F3EF; --card:#FFFFFF; --line:#DED8D2; --ink:#171310;
+    --maroon:#990000; --bar:#800000; --accent:#C00000; --muted:#5A514B;
+    --sub:#D9D9D9; --label:#F2F2F2; --soft:#FBF9F7; --warn:#FFF4F4; --warnline:#E5C4C4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:Questrial,'Century Gothic',Arial,sans-serif;line-height:1.55;}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 16px 64px;}
+  header.top{background:var(--maroon);color:#fff;padding:18px 0;margin-bottom:22px;}
+  header.top .wrap{padding-bottom:0;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;}
+  h1{font-size:27px;margin:4px 0 0;font-weight:normal;}
+  .lede{color:var(--muted);font-size:15px;margin:0 0 20px;max-width:74ch;}
+
+  .panel{border:1px solid var(--line);background:var(--card);margin-bottom:16px;}
+  .panel-head{background:var(--sub);color:var(--accent);padding:7px 12px;font-size:11.5px;
+    letter-spacing:.14em;text-transform:uppercase;font-weight:bold;}
+  .panel-body{padding:16px;}
+  .cols{display:grid;grid-template-columns:1fr 1.15fr;gap:16px;align-items:start;}
+  @media (max-width:920px){ .cols{grid-template-columns:1fr;} }
+
+  .brief{border-left:4px solid var(--accent);background:var(--soft);padding:12px 14px;margin-bottom:14px;}
+  .brief .no{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);
+    letter-spacing:.1em;text-transform:uppercase;}
+  .brief h2{font-size:16.5px;margin:4px 0 6px;}
+  .brief p{margin:0;font-size:14.5px;}
+
+  .field{margin-bottom:13px;}
+  .field > span.lbl{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:5px;}
+  select{font:inherit;font-family:'JetBrains Mono',monospace;font-size:12.5px;width:100%;
+    padding:8px 9px;border:1px solid var(--line);background:var(--card);color:var(--ink);}
+  select:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .perms{display:flex;flex-wrap:wrap;gap:7px;}
+  .perms label{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);
+    padding:7px 10px;font-size:13px;cursor:pointer;background:var(--card);}
+  .perms label:hover{border-color:var(--accent);}
+  .perms input{width:15px;height:15px;}
+  .perms input:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .perms .flag{font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:12px;}
+
+  .url{background:var(--ink);color:#EDE7E1;font-family:'JetBrains Mono',monospace;font-size:11.5px;
+    padding:13px 14px;word-break:break-all;line-height:1.7;}
+  .url .p{color:#F0D7A0;}
+  .url .v{color:#9FC3AE;}
+  .url .sig{color:#A79C94;}
+
+  table.tests{width:100%;border-collapse:collapse;font-size:13px;}
+  table.tests th{background:var(--bar);color:#fff;text-align:left;padding:7px 9px;font-weight:bold;}
+  table.tests td{border:1px solid var(--line);padding:7px 9px;vertical-align:top;}
+  table.tests td.v{width:112px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11.5px;}
+  tr.pass td{background:var(--soft);}
+  tr.fail td{background:var(--warn);}
+  .want{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;}
+  .code{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);}
+  .okmark{color:var(--bar);font-weight:bold;}
+  .nomark{color:var(--accent);font-weight:bold;}
+
+  .btn{font:inherit;background:var(--maroon);color:#fff;border:1px solid var(--maroon);
+    padding:11px 20px;cursor:pointer;letter-spacing:.03em;}
+  .btn:hover:not(:disabled){background:#7d0000;}
+  .btn:disabled{background:#C9C2BC;border-color:#C9C2BC;cursor:not-allowed;}
+  .btn.ghost{background:transparent;color:var(--maroon);}
+  .btn.ghost:hover{background:var(--soft);}
+  .btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;}
+  .hint{font-size:13px;color:var(--muted);}
+
+  .verdict{border-left:4px solid var(--accent);background:var(--soft);padding:13px 15px;margin-top:14px;display:none;}
+  .verdict.shown{display:block;}
+  .verdict h3{margin:0 0 6px;font-size:15px;}
+  .verdict p{margin:0 0 8px;font-size:14px;}
+  .verdict p:last-child{margin-bottom:0;}
+
+  .statusbar{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center;
+    border:1px solid var(--line);background:var(--card);padding:10px 14px;margin-bottom:18px;}
+  .status-item{font-size:13px;color:var(--muted);}
+  .status-item b{color:var(--ink);font-size:15px;}
+
+  .summary{display:none;}
+  .summary.shown{display:block;}
+  .scorebig{font-family:'JetBrains Mono',monospace;font-size:40px;color:var(--maroon);line-height:1;}
+  table.ref{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:14px;}
+  table.ref th{background:var(--bar);color:#fff;text-align:left;padding:8px 10px;}
+  table.ref td{border:1px solid var(--line);padding:8px 10px;vertical-align:top;}
+  table.ref td.m{font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;}
+  footer.note{margin-top:26px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">CIT 386 &middot; Module 4 &middot; Activity 4.1</div>
+    <h1>Issuing a token</h1>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="lede">Four briefs. For each one, build a shared access signature that allows exactly what the brief asks for and denies everything else. A token that permits too much passes the first test and fails the brief, which is the entire lesson.</p>
+
+  <div class="statusbar">
+    <div class="status-item">Brief <b id="briefNum">1 of 4</b></div>
+    <div class="status-item">Issued correctly on the first attempt <b id="scoreNum">0</b></div>
+  </div>
+
+  <section class="panel" id="mainPanel">
+    <div class="panel-body">
+      <div class="brief">
+        <div class="no" id="bNo"></div>
+        <h2 id="bTitle"></h2>
+        <p id="bText"></p>
+      </div>
+
+      <div class="cols">
+        <div>
+          <div class="field">
+            <span class="lbl">What the token covers</span>
+            <select id="fScope">
+              <option value="folder">Just my folder: /students/ana-morales/</option>
+              <option value="container">The whole container: /students/</option>
+              <option value="account">The entire storage account</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <span class="lbl">Permissions</span>
+            <div class="perms">
+              <label><input type="checkbox" id="pR"> Read <span class="flag">r</span></label>
+              <label><input type="checkbox" id="pW"> Write <span class="flag">w</span></label>
+              <label><input type="checkbox" id="pD"> Delete <span class="flag">d</span></label>
+              <label><input type="checkbox" id="pL"> List <span class="flag">l</span></label>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="lbl">Valid from</span>
+            <select id="fStart">
+              <option value="now">Today, 08:00</option>
+              <option value="future">Tomorrow, 08:00</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <span class="lbl">Valid until</span>
+            <select id="fEnd">
+              <option value="past">Yesterday, 17:00</option>
+              <option value="day">Today, 17:00</option>
+              <option value="month">In 30 days</option>
+              <option value="decade">In 10 years</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <span class="lbl">Allowed protocol</span>
+            <select id="fProto">
+              <option value="https">HTTPS only</option>
+              <option value="both">HTTPS and HTTP</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <span class="lbl">Allowed source addresses</span>
+            <select id="fIp">
+              <option value="none">Any address</option>
+              <option value="campus">Campus range only</option>
+            </select>
+          </div>
+
+          <div class="actions">
+            <button class="btn" id="issueBtn">Issue the token and run the tests</button>
+          </div>
+          <p class="hint" id="hint">The current time in this exercise is today at 10:00.</p>
+        </div>
+
+        <div>
+          <div class="panel" style="margin-bottom:12px;">
+            <div class="panel-head">The link you would hand out</div>
+            <div class="url" id="url"></div>
+          </div>
+
+          <div class="panel" style="margin-bottom:0;">
+            <div class="panel-head">Requests tested against it</div>
+            <div class="panel-body" style="padding:0;">
+              <table class="tests">
+                <thead><tr><th>Request</th><th class="v">Should be</th><th class="v">Result</th></tr></thead>
+                <tbody id="testBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
+      <div class="actions"><button class="btn ghost" id="nextBtn" style="display:none;">Next brief</button></div>
+    </div>
+  </section>
+
+  <section class="panel summary" id="summary">
+    <div class="panel-head">What every denial told you</div>
+    <div class="panel-body">
+      <div class="scorebig" id="finalScore"></div>
+      <p id="finalLine" style="margin:6px 0 14px;max-width:74ch;"></p>
+      <p style="margin:0;max-width:74ch;">A shared access signature is not a password. It is a signed statement of exactly what may be done, to what, from where, and between which two moments. Every one of those is a separate decision, and the failure mode is always the same: a token that works, issued wider than the job needed. Assignment 4.2 asks you to document what your token permits, what it forbids, and what happens after it expires, with evidence for both states.</p>
+      <table class="ref">
+        <thead><tr><th style="width:34%;">The error you would see</th><th>What it means</th></tr></thead>
+        <tbody id="refBody"></tbody>
+      </table>
+      <div class="actions"><button class="btn ghost" id="restartBtn">Work the briefs again</button></div>
+    </div>
+  </section>
+
+  <footer class="note">Nothing is saved. The signature shown is a placeholder, and no real token is ever produced here.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hasGsap = typeof window.gsap !== 'undefined';
+
+  var ME = 'ana-morales';
+
+  // request shape: method, target, proto, from
+  var R = function(label, method, target, proto, from){
+    return { label:label, method:method, target:target, proto:proto, from:from };
+  };
+
+  var BRIEFS = [
+    {
+      title:'A link for a recruiter',
+      text:'A recruiter anywhere in the country must be able to open your resume PDF for the next month. They must not be able to change it, delete it, list what else is in the folder, or reach anybody else\u2019s work.',
+      tests:[
+        { r:R('Recruiter opens your resume PDF over https', 'GET', 'own', 'https', 'away'), want:true },
+        { r:R('Recruiter tries to replace the file', 'PUT', 'own', 'https', 'away'), want:false },
+        { r:R('Recruiter lists everything in the folder', 'LIST', 'container', 'https', 'away'), want:false },
+        { r:R('Someone opens a classmate\u2019s file with your link', 'GET', 'other', 'https', 'away'), want:false }
+      ],
+      lesson:'Read only, scoped to your own folder, with an expiry a month out. Notice that the list permission is a separate decision from read: without it, someone holding the link can open a file they already know the name of, and cannot discover what else is there.'
+    },
+    {
+      title:'A classmate uploading during the lab',
+      text:'A classmate has to place one file into your folder during today\u2019s laboratory session, working from a campus machine. After today the link must be dead, and it must not work from outside the campus network even today.',
+      tests:[
+        { r:R('Classmate uploads a file from a campus machine', 'PUT', 'own', 'https', 'campus'), want:true },
+        { r:R('Classmate reads a file back to confirm the upload', 'GET', 'own', 'https', 'campus'), want:true },
+        { r:R('The same upload attempted from home', 'PUT', 'own', 'https', 'away'), want:false },
+        { r:R('Classmate deletes one of your files', 'DELETE', 'own', 'https', 'campus'), want:false }
+      ],
+      lesson:'Write is not delete, and both are separate from read. Restricting the source address is the control most people forget, and it is the one that would have contained several real breaches: a token that leaks is much less useful to someone who cannot reach it from where they are.'
+    },
+    {
+      title:'Nothing in the clear',
+      text:'Your resume link is going on a printed card. It must work for a month from anywhere, and any attempt to open it over plain http must be refused rather than quietly redirected.',
+      tests:[
+        { r:R('Visitor opens the link over https', 'GET', 'own', 'https', 'away'), want:true },
+        { r:R('Visitor opens the same link over http', 'GET', 'own', 'http', 'away'), want:false },
+        { r:R('Visitor tries to upload over https', 'PUT', 'own', 'https', 'away'), want:false }
+      ],
+      lesson:'The protocol restriction is one parameter and it removes an entire category of problem: a signature travelling over plain http can be read off the wire and reused by whoever read it, until it expires. This is also why an expiry ten years out is a bad habit rather than a convenience.'
+    },
+    {
+      title:'A grader who needs to look around',
+      text:'I need to list your folder and read everything in it for the next month, from anywhere. I must never be able to change or remove anything, and the link must not reach any other student.',
+      tests:[
+        { r:R('Instructor lists the contents of your folder', 'LIST', 'own', 'https', 'away'), want:true },
+        { r:R('Instructor reads a file found in the listing', 'GET', 'own', 'https', 'away'), want:true },
+        { r:R('Instructor deletes a file', 'DELETE', 'own', 'https', 'away'), want:false },
+        { r:R('The link is tried against another student\u2019s folder', 'LIST', 'other', 'https', 'away'), want:false }
+      ],
+      lesson:'Read and list together are what a reviewer needs, and neither of them lets anyone change anything. Compare this with handing over the storage account key, which is the shortcut people reach for: that key permits everything, everywhere in the account, forever, and cannot be scoped or expired without changing it for everyone.'
+    }
+  ];
+
+  var REFS = [
+    ['AuthenticationFailed', 'Outside the valid time window. Either it has not started yet or it has already expired.'],
+    ['AuthorizationPermissionMismatch', 'The operation asked for is not in the permission list on the token.'],
+    ['AuthorizationResourceTypeMismatch', 'The target is outside what the token was scoped to.'],
+    ['AuthorizationProtocolMismatch', 'The request used a protocol the token does not allow.'],
+    ['AuthorizationSourceIPMismatch', 'The request came from an address outside the allowed range.']
+  ];
+
+  var PERM_OF = { GET:'r', PUT:'w', DELETE:'d', LIST:'l' };
+
+  function evaluate(t, req){
+    if(t.start === 'future') return { ok:false, code:'AuthenticationFailed', why:'not valid yet' };
+    if(t.end === 'past')     return { ok:false, code:'AuthenticationFailed', why:'expired' };
+    if(t.end === 'day' && req.when === 'later') return { ok:false, code:'AuthenticationFailed', why:'expired' };
+    if(t.proto === 'https' && req.proto === 'http') return { ok:false, code:'AuthorizationProtocolMismatch', why:'http refused' };
+    if(t.ip === 'campus' && req.from !== 'campus') return { ok:false, code:'AuthorizationSourceIPMismatch', why:'wrong network' };
+    var covered = (t.scope === 'account') ||
+                  (t.scope === 'container' && (req.target === 'own' || req.target === 'other' || req.target === 'container')) ||
+                  (t.scope === 'folder' && req.target === 'own');
+    if(!covered) return { ok:false, code:'AuthorizationResourceTypeMismatch', why:'outside scope' };
+    if(!t.perms[PERM_OF[req.method]]) return { ok:false, code:'AuthorizationPermissionMismatch', why:'permission not granted' };
+    return { ok:true, code:'200 OK', why:'allowed' };
+  }
+
+  var idx = 0, score = 0, firstTry = true;
+
+  var el = {
+    bNo:document.getElementById('bNo'), bTitle:document.getElementById('bTitle'), bText:document.getElementById('bText'),
+    scope:document.getElementById('fScope'), start:document.getElementById('fStart'), end:document.getElementById('fEnd'),
+    proto:document.getElementById('fProto'), ip:document.getElementById('fIp'),
+    pR:document.getElementById('pR'), pW:document.getElementById('pW'), pD:document.getElementById('pD'), pL:document.getElementById('pL'),
+    url:document.getElementById('url'), body:document.getElementById('testBody'), issue:document.getElementById('issueBtn'),
+    next:document.getElementById('nextBtn'), verdict:document.getElementById('verdict'), hint:document.getElementById('hint'),
+    num:document.getElementById('briefNum'), score:document.getElementById('scoreNum'), panel:document.getElementById('mainPanel'),
+    summary:document.getElementById('summary'), finalScore:document.getElementById('finalScore'),
+    finalLine:document.getElementById('finalLine'), refBody:document.getElementById('refBody'),
+    restart:document.getElementById('restartBtn')
+  };
+
+  function readToken(){
+    return {
+      scope:el.scope.value, start:el.start.value, end:el.end.value,
+      proto:el.proto.value, ip:el.ip.value,
+      perms:{ r:el.pR.checked, w:el.pW.checked, d:el.pD.checked, l:el.pL.checked }
+    };
+  }
+
+  function permString(t){
+    return ['r','w','d','l'].filter(function(k){ return t.perms[k]; }).join('') || '(none)';
+  }
+
+  function renderUrl(){
+    var t = readToken();
+    var path = t.scope === 'account' ? '' : (t.scope === 'container' ? 'students/' : 'students/' + ME + '/resume.pdf');
+    var se = { past:'2026-10-11T17:00Z', day:'2026-10-12T17:00Z', month:'2026-11-11T10:00Z', decade:'2036-10-12T10:00Z' }[t.end];
+    var stv = t.start === 'now' ? '2026-10-12T08:00Z' : '2026-10-13T08:00Z';
+    var parts = [
+      ['sp', permString(t)],
+      ['st', stv],
+      ['se', se],
+      ['spr', t.proto === 'https' ? 'https' : 'https,http'],
+      ['sr', t.scope === 'account' ? 'c' : (t.scope === 'container' ? 'c' : 'b')]
+    ];
+    if(t.ip === 'campus') parts.push(['sip', '198.51.100.0-198.51.100.255']);
+    var q = parts.map(function(p){ return '<span class="p">' + p[0] + '</span>=<span class="v">' + p[1] + '</span>'; }).join('&amp;');
+    el.url.innerHTML = 'https://cit386storage.blob.core.windows.net/' + path + '?' + q +
+      '&amp;<span class="p">sig</span>=<span class="sig">Xy8f...redacted</span>';
+  }
+
+  function renderBrief(){
+    var b = BRIEFS[idx];
+    firstTry = true;
+    el.bNo.textContent = 'Brief ' + (idx + 1);
+    el.bTitle.textContent = b.title;
+    el.bText.textContent = b.text;
+    el.num.textContent = (idx + 1) + ' of ' + BRIEFS.length;
+    el.score.textContent = String(score);
+    el.scope.value = 'folder'; el.start.value = 'now'; el.end.value = 'day';
+    el.proto.value = 'both'; el.ip.value = 'none';
+    el.pR.checked = false; el.pW.checked = false; el.pD.checked = false; el.pL.checked = false;
+    el.body.innerHTML = '';
+    b.tests.forEach(function(t){
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + t.r.label + '<span class="want">' + t.r.method + ' &middot; ' +
+        (t.r.proto) + ' &middot; from ' + (t.r.from === 'campus' ? 'campus' : 'off campus') + '</span></td>' +
+        '<td class="v">' + (t.want ? '<span class="okmark">allowed</span>' : '<span class="nomark">denied</span>') + '</td>' +
+        '<td class="v" data-res>&mdash;</td>';
+      el.body.appendChild(tr);
+    });
+    el.verdict.className = 'verdict'; el.verdict.innerHTML = '';
+    el.next.style.display = 'none';
+    el.issue.style.display = '';
+    el.issue.disabled = false;
+    el.hint.textContent = 'The current time in this exercise is today at 10:00.';
+    renderUrl();
+    if(!reduced && hasGsap) window.gsap.from(el.panel, { opacity:0, y:8, duration:.3 });
+  }
+
+  function issue(){
+    var b = BRIEFS[idx], t = readToken();
+    var allPass = true;
+    b.tests.forEach(function(test, i){
+      var res = evaluate(t, test.r);
+      var tr = el.body.children[i];
+      var cell = tr.querySelector('[data-res]');
+      var pass = (res.ok === test.want);
+      if(!pass) allPass = false;
+      tr.className = pass ? 'pass' : 'fail';
+      var paint = function(){
+        cell.innerHTML = res.ok ? '<span class="okmark">200 OK</span>'
+                                : '<span class="code">' + res.code.replace('Authorization','Auth') + '</span>';
+      };
+      if(reduced || !hasGsap) paint(); else window.gsap.delayedCall(i * 0.2, paint);
+    });
+
+    if(allPass){
+      if(firstTry) score++;
+      el.score.textContent = String(score);
+      el.verdict.innerHTML = '<h3>' + (firstTry ? 'Issued correctly on the first attempt.' : 'Issued correctly.') +
+        '</h3><p>' + b.lesson + '</p>';
+      el.verdict.classList.add('shown');
+      el.issue.style.display = 'none';
+      el.next.style.display = '';
+      el.next.textContent = (idx === BRIEFS.length - 1) ? 'See the error reference' : 'Next brief';
+      el.hint.textContent = '';
+      el.next.focus();
+    } else {
+      firstTry = false;
+      var wrong = [];
+      b.tests.forEach(function(test, i){
+        var res = evaluate(t, test.r);
+        if(res.ok !== test.want){
+          wrong.push(res.ok
+            ? 'This token allows: ' + test.r.label.toLowerCase() + '. The brief says it must not.'
+            : 'This token blocks: ' + test.r.label.toLowerCase() + ' (' + res.why + '). The brief says it must work.');
+        }
+      });
+      el.verdict.innerHTML = '<h3>Not yet. ' + wrong.length + ' of ' + b.tests.length + ' requests came out wrong.</h3><p>' +
+        wrong.join('</p><p>') + '</p>';
+      el.verdict.classList.add('shown');
+      el.hint.textContent = 'Adjust the token and issue it again.';
+    }
+  }
+
+  function finish(){
+    el.panel.style.display = 'none';
+    el.summary.classList.add('shown');
+    el.finalScore.textContent = score + ' / ' + BRIEFS.length;
+    el.finalLine.textContent = score === BRIEFS.length
+      ? 'Every token issued at exactly the width the brief asked for. That is the habit to keep when you issue a real one this week.'
+      : 'The briefs that took a second attempt are worth rereading. In every case the token either reached further than the job needed or blocked something the job required.';
+    el.refBody.innerHTML = '';
+    REFS.forEach(function(r){
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="m">' + r[0] + '</td><td>' + r[1] + '</td>';
+      el.refBody.appendChild(tr);
+    });
+    if(!reduced && hasGsap) window.gsap.from(el.summary, { opacity:0, y:10, duration:.4 });
+    el.restart.focus();
+  }
+
+  ['fScope','fStart','fEnd','fProto','fIp'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', renderUrl);
+  });
+  ['pR','pW','pD','pL'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', renderUrl);
+  });
+
+  el.issue.addEventListener('click', issue);
+  el.next.addEventListener('click', function(){
+    if(idx === BRIEFS.length - 1){ finish(); return; }
+    idx++; renderBrief();
+  });
+  el.restart.addEventListener('click', function(){
+    idx = 0; score = 0;
+    el.summary.classList.remove('shown');
+    el.panel.style.display = '';
+    renderBrief();
+  });
+
+  renderBrief();
+})();
+</script>
+</body>
+</html>

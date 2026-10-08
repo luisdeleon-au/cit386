@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Switches, and who owns the processor. CIT 386 Module 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Questrial&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F3EF; --card:#FFFFFF; --line:#DED8D2; --ink:#171310;
+    --maroon:#990000; --bar:#800000; --accent:#C00000; --muted:#5A514B;
+    --sub:#D9D9D9; --label:#F2F2F2; --soft:#FBF9F7; --warn:#FFF4F4; --warnline:#E5C4C4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:Questrial,'Century Gothic',Arial,sans-serif;line-height:1.55;}
+  .wrap{max-width:1020px;margin:0 auto;padding:0 16px 64px;}
+  header.top{background:var(--maroon);color:#fff;padding:18px 0;margin-bottom:22px;}
+  header.top .wrap{padding-bottom:0;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;}
+  h1{font-size:27px;margin:4px 0 0;font-weight:normal;}
+  .lede{color:var(--muted);font-size:15px;margin:0 0 20px;max-width:74ch;}
+
+  .panel{border:1px solid var(--line);background:var(--card);margin-bottom:16px;}
+  .panel-head{background:var(--sub);color:var(--accent);padding:7px 12px;font-size:11.5px;
+    letter-spacing:.14em;text-transform:uppercase;font-weight:bold;}
+  .panel-body{padding:16px;}
+
+  .switches{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px;}
+  button.sw{font:inherit;text-align:left;background:var(--card);border:1px solid var(--line);
+    border-top:3px solid var(--line);padding:10px 11px;cursor:pointer;width:100%;}
+  button.sw:hover{border-color:var(--accent);}
+  button.sw:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  button.sw[aria-pressed="true"]{border-top-color:var(--maroon);background:var(--soft);}
+  .sw-name{font-weight:bold;font-size:14.5px;display:block;}
+  .sw-sub{font-size:11.5px;color:var(--muted);display:block;margin-top:2px;}
+
+  .shareline{display:flex;align-items:center;gap:9px;margin-top:12px;padding:9px 11px;
+    border:1px solid var(--line);background:var(--label);font-size:13.5px;}
+  .shareline input{width:16px;height:16px;}
+  .shareline input:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .shareline.off{opacity:.45;}
+
+  table.matrix{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px;}
+  table.matrix th{background:var(--bar);color:#fff;text-align:left;padding:8px 10px;}
+  table.matrix th.c{text-align:center;width:96px;}
+  table.matrix td{border:1px solid var(--line);padding:7px 10px;}
+  table.matrix td.c{text-align:center;}
+  .pred{display:inline-flex;border:1px solid var(--line);}
+  .pred button{font:inherit;font-size:12px;background:var(--card);border:none;padding:5px 10px;cursor:pointer;color:var(--muted);}
+  .pred button[aria-pressed="true"]{background:var(--bar);color:#fff;}
+  .pred button:focus-visible{outline:3px solid var(--accent);outline-offset:-2px;}
+  .result{font-family:'JetBrains Mono',monospace;font-size:12px;}
+  .result.yes{color:var(--bar);} .result.no{color:var(--muted);}
+  tr.wrong td{background:var(--warn);}
+  tr.right td:first-child{border-left:3px solid var(--bar);}
+
+  .explain{border-left:4px solid var(--accent);background:var(--soft);padding:13px 15px;margin-top:14px;display:none;}
+  .explain.shown{display:block;}
+  .explain h3{margin:0 0 6px;font-size:15px;}
+  .explain p{margin:0 0 8px;font-size:14px;}
+  .explain p:last-child{margin-bottom:0;}
+
+  /* stack diagram */
+  .stack{display:flex;flex-direction:column;gap:6px;margin-top:6px;}
+  .layer{border:1px solid var(--line);background:var(--card);padding:10px 12px;font-size:13.5px;}
+  .layer .t{font-weight:bold;}
+  .layer .d{font-size:12px;color:var(--muted);}
+  .layer.hw{background:var(--ink);color:#EDE7E1;border-color:var(--ink);}
+  .layer.hw .d{color:#A79C94;}
+  .layer.hv{background:var(--bar);color:#fff;border-color:var(--bar);}
+  .layer.hv .d{color:#EBD6D6;}
+  .layer.vb{border-left:3px solid var(--accent);}
+  .owner{float:right;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:12px;}
+  .metric{border:1px solid var(--line);background:var(--label);padding:9px 11px;}
+  .metric .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .metric .v{font-family:'JetBrains Mono',monospace;font-size:17px;}
+  .toggleline{display:flex;align-items:center;gap:10px;font-size:14px;margin-bottom:12px;}
+  .toggleline input{width:17px;height:17px;}
+  .toggleline input:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+
+  table.map{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px;}
+  table.map th{background:var(--bar);color:#fff;text-align:left;padding:8px 10px;}
+  table.map td{border:1px solid var(--line);padding:8px 10px;vertical-align:top;}
+
+  .btn{font:inherit;background:var(--maroon);color:#fff;border:1px solid var(--maroon);
+    padding:10px 18px;cursor:pointer;font-size:14px;}
+  .btn:disabled{background:#C9C2BC;border-color:#C9C2BC;cursor:not-allowed;}
+  .btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;}
+  .hint{font-size:13px;color:var(--muted);}
+  .statusbar{display:flex;gap:26px;align-items:center;border:1px solid var(--line);
+    background:var(--card);padding:10px 14px;margin-bottom:18px;}
+  .status-item{font-size:13px;color:var(--muted);}
+  .status-item b{color:var(--ink);font-size:15px;}
+  footer.note{margin-top:26px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">CIT 386 &middot; Module 4 &middot; Activity 4.2</div>
+    <h1>Switches, and who owns the processor</h1>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="lede">Two things to settle before the laboratory session. Which Hyper-V switch type puts a guest where, and what happens to VirtualBox on a machine where you have turned Hyper-V on.</p>
+
+  <div class="statusbar">
+    <div class="status-item">Switches tested <b id="testedNum">0 of 3</b></div>
+    <div class="status-item">Predictions correct <b id="predNum">0 of 15</b></div>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">Virtual switch type</div>
+    <div class="panel-body">
+      <div class="switches" id="switches"></div>
+      <div class="shareline" id="shareline">
+        <input type="checkbox" id="shareCb" checked>
+        <label for="shareCb">Allow the management operating system to share this network adapter</label>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">That checkbox only appears on an external switch, and it is the one people miss. Clear it and see what changes.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head" id="matrixHead">Predict, then test</div>
+    <div class="panel-body">
+      <table class="matrix">
+        <thead><tr><th>From the guest, can it reach</th><th class="c">Your call</th><th class="c">Result</th></tr></thead>
+        <tbody id="matrixBody"></tbody>
+      </table>
+      <div class="actions">
+        <button class="btn" id="runBtn" disabled>Run the tests</button>
+        <span class="hint" id="hint">Answer all five rows first.</span>
+      </div>
+      <div class="explain" id="explain" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">The other hypervisor on the same machine</div>
+    <div class="panel-body">
+      <p style="margin:0 0 12px;max-width:74ch;">Turn the Hyper-V platform on and the stack underneath Windows changes. Watch where the hardware sits and who is talking to it.</p>
+      <div class="toggleline">
+        <input type="checkbox" id="hvToggle">
+        <label for="hvToggle">Hyper-V platform enabled on this workstation</label>
+      </div>
+      <div class="stack" id="stack"></div>
+      <div class="metrics" id="metrics"></div>
+      <div class="explain shown" id="hvExplain" style="margin-top:14px;" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">The same idea in both products</div>
+    <div class="panel-body">
+      <table class="map">
+        <thead><tr><th style="width:30%;">VirtualBox, Module 2</th><th style="width:30%;">Hyper-V, this module</th><th>What they have in common</th></tr></thead>
+        <tbody>
+          <tr><td>Bridged adapter</td><td>External switch</td><td>The guest is on the physical network with its own address, and anyone in the room can reach it.</td></tr>
+          <tr><td>Host-only adapter</td><td>Internal switch</td><td>A private network shared by the guests and the host, with no route out.</td></tr>
+          <tr><td>Internal network</td><td>Private switch</td><td>Guests only. The host is shut out as well, which is what makes it useful for sealed tests.</td></tr>
+          <tr><td>NAT, and NAT Network</td><td>Default Switch, or an internal switch with address translation set up</td><td>The guest reaches out and nothing reaches in. This is the one place the two products do not line up neatly, and the naming is the reason people get lost.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="note">Nothing is saved. Timing figures are representative of what this class has measured, not a benchmark.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hasGsap = typeof window.gsap !== 'undefined';
+
+  var TARGETS = [
+    { id:'internet', label:'The internet, to download updates' },
+    { id:'host',     label:'A service running on the Windows host itself' },
+    { id:'peer',     label:'Another guest attached to the same switch' },
+    { id:'lan',      label:'A printer or server elsewhere on the laboratory network' },
+    { id:'inbound',  label:'Inbound: a classmate opening a page served by the guest' }
+  ];
+
+  var SWITCHES = [
+    { id:'external', name:'External', sub:'Bound to a physical adapter',
+      truth:{internet:true, host:true, peer:true, lan:true, inbound:true},
+      truthNoShare:{internet:true, host:false, peer:true, lan:true, inbound:true},
+      desc:'The switch is bound to a physical network adapter, so guests appear on the laboratory network with their own addresses.',
+      notes:{ inbound:'The only switch type here that lets someone else start a connection to your guest without further configuration.',
+              host:'With the sharing checkbox cleared, the physical adapter is handed to the guests alone and the Windows host loses its own connection through it. That is a real way to knock a machine off the network from inside Hyper-V Manager.' } },
+    { id:'internal', name:'Internal', sub:'Host and guests',
+      truth:{internet:false, host:true, peer:true, lan:false, inbound:false},
+      desc:'A private network between the host and its guests. Nothing routes out of it unless you set up translation yourself.',
+      notes:{ internet:'No route out, so no updates and no package installs on that adapter alone.',
+              host:'This is the difference from a private switch: the host is on this network too, which is what makes it useful for management.' } },
+    { id:'private', name:'Private', sub:'Guests only',
+      truth:{internet:false, host:false, peer:true, lan:false, inbound:false},
+      desc:'A network between guests, with the host excluded as well.',
+      notes:{ host:'Even the machine sitting in front of you cannot reach these guests, which is exactly the point when you are testing something you do not trust.',
+              peer:'Guests on the same private switch see each other and nothing else, so this is where you build a sealed multi machine test.' } }
+  ];
+
+  var state = { sw:null, preds:{}, tested:{}, correct:0, share:true };
+
+  var el = {
+    switches:document.getElementById('switches'), body:document.getElementById('matrixBody'),
+    run:document.getElementById('runBtn'), hint:document.getElementById('hint'),
+    explain:document.getElementById('explain'), head:document.getElementById('matrixHead'),
+    tested:document.getElementById('testedNum'), pred:document.getElementById('predNum'),
+    shareline:document.getElementById('shareline'), shareCb:document.getElementById('shareCb'),
+    stack:document.getElementById('stack'), metrics:document.getElementById('metrics'),
+    hvToggle:document.getElementById('hvToggle'), hvExplain:document.getElementById('hvExplain')
+  };
+
+  function swById(id){ return SWITCHES.filter(function(s){ return s.id === id; })[0]; }
+  function truthFor(s){
+    return (s.id === 'external' && !state.share) ? s.truthNoShare : s.truth;
+  }
+
+  function buildSwitches(){
+    SWITCHES.forEach(function(s){
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'sw'; b.dataset.id = s.id;
+      b.setAttribute('aria-pressed','false');
+      b.innerHTML = '<span class="sw-name">' + s.name + ' switch</span><span class="sw-sub">' + s.sub + '</span>';
+      b.addEventListener('click', function(){ select(s.id); });
+      el.switches.appendChild(b);
+    });
+  }
+
+  function select(id){
+    state.sw = id; state.preds = {};
+    Array.prototype.forEach.call(el.switches.children, function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.id === id));
+      if(state.tested[b.dataset.id]) b.style.borderTopColor = '#800000';
+    });
+    el.shareline.className = 'shareline' + (id === 'external' ? '' : ' off');
+    el.shareCb.disabled = (id !== 'external');
+    el.head.textContent = 'Predict, then test: ' + swById(id).name + ' switch';
+    buildMatrix();
+    el.explain.className = 'explain'; el.explain.innerHTML = '';
+    el.run.disabled = true;
+    el.hint.textContent = 'Answer all five rows first.';
+  }
+
+  function buildMatrix(){
+    el.body.innerHTML = '';
+    TARGETS.forEach(function(t){
+      var tr = document.createElement('tr');
+      tr.dataset.id = t.id;
+      tr.innerHTML = '<td>' + t.label + '</td>' +
+        '<td class="c"><span class="pred" role="group" aria-label="' + t.label + '">' +
+        '<button type="button" data-v="yes" aria-pressed="false">yes</button>' +
+        '<button type="button" data-v="no" aria-pressed="false">no</button></span></td>' +
+        '<td class="c"><span class="result" data-res></span></td>';
+      el.body.appendChild(tr);
+      Array.prototype.forEach.call(tr.querySelectorAll('.pred button'), function(b){
+        b.addEventListener('click', function(){
+          state.preds[t.id] = (b.dataset.v === 'yes');
+          Array.prototype.forEach.call(tr.querySelectorAll('.pred button'), function(x){
+            x.setAttribute('aria-pressed', String(x === b));
+          });
+          el.run.disabled = Object.keys(state.preds).length < TARGETS.length;
+          if(!el.run.disabled) el.hint.textContent = 'Ready.';
+        });
+      });
+    });
+  }
+
+  function run(){
+    var s = swById(state.sw), truth = truthFor(s), gained = 0;
+    TARGETS.forEach(function(t, i){
+      var tr = el.body.querySelector('[data-id="' + t.id + '"]');
+      var res = tr.querySelector('[data-res]');
+      var ok = state.preds[t.id] === truth[t.id];
+      if(ok) gained++;
+      tr.className = ok ? 'right' : 'wrong';
+      var paint = function(){
+        res.textContent = truth[t.id] ? 'reachable' : 'no route';
+        res.className = 'result ' + (truth[t.id] ? 'yes' : 'no');
+      };
+      if(reduced || !hasGsap) paint(); else window.gsap.delayedCall(i * 0.2, paint);
+    });
+    var key = state.sw + (state.sw === 'external' ? (state.share ? '-share' : '-noshare') : '');
+    if(!state.tested[key]){
+      state.tested[key] = true;
+      state.tested[state.sw] = true;
+      state.correct += gained;
+    }
+    el.tested.textContent = Object.keys(state.tested).filter(function(k){ return k.indexOf('-') === -1; }).length + ' of 3';
+    el.pred.textContent = state.correct + ' of ' + (3 * TARGETS.length);
+
+    var html = '<h3>' + gained + ' of 5 correct for the ' + s.name.toLowerCase() + ' switch' +
+      (s.id === 'external' && !state.share ? ', with sharing cleared' : '') + '</h3><p>' + s.desc + '</p>';
+    Object.keys(s.notes).forEach(function(k){ html += '<p>' + s.notes[k] + '</p>'; });
+    if(s.id === 'external' && state.share){
+      html += '<p>Now clear the sharing checkbox above and run the external switch again. One row changes, and it is the row that catches people out on a machine they are connected to remotely.</p>';
+    }
+    el.explain.innerHTML = html;
+    el.explain.classList.add('shown');
+    el.run.disabled = true;
+    Array.prototype.forEach.call(el.switches.children, function(b){
+      if(state.tested[b.dataset.id]) b.style.borderTopColor = '#800000';
+    });
+  }
+
+  el.shareCb.addEventListener('change', function(){
+    state.share = el.shareCb.checked;
+    if(state.sw === 'external'){ select('external'); }
+  });
+  el.run.addEventListener('click', run);
+
+  /* ---- the hypervisor stack ---- */
+  var STACK_OFF = [
+    { c:'vb', t:'Your VirtualBox guest', d:'Ubuntu, running at close to native speed', o:'guest' },
+    { c:'', t:'VirtualBox', d:'Uses the processor virtualization extensions directly', o:'hypervisor' },
+    { c:'', t:'Windows', d:'Running on the hardware', o:'host os' },
+    { c:'hw', t:'The physical machine', d:'Processor extensions available to whoever asks first', o:'hardware' }
+  ];
+  var STACK_ON = [
+    { c:'vb', t:'Your VirtualBox guest', d:'Same guest, now several layers further from the hardware', o:'guest' },
+    { c:'', t:'VirtualBox', d:'Extensions are taken, so it works through the Hyper-V interface instead', o:'hypervisor' },
+    { c:'', t:'Windows, as the root partition', d:'No longer on the hardware. It is a privileged guest now.', o:'host os' },
+    { c:'hv', t:'The Hyper-V hypervisor', d:'Holds the processor virtualization extensions', o:'hypervisor' },
+    { c:'hw', t:'The physical machine', d:'Extensions claimed at boot by Hyper-V', o:'hardware' }
+  ];
+
+  function renderStack(){
+    var on = el.hvToggle.checked;
+    var rows = on ? STACK_ON : STACK_OFF;
+    el.stack.innerHTML = '';
+    rows.forEach(function(r, i){
+      var d = document.createElement('div');
+      d.className = 'layer ' + r.c;
+      d.innerHTML = '<span class="owner">' + r.o + '</span><span class="t">' + r.t + '</span><span class="d">' + r.d + '</span>';
+      el.stack.appendChild(d);
+      if(!reduced && hasGsap) window.gsap.from(d, { opacity:0, y:-6, duration:.25, delay:i * .06 });
+    });
+    var m = on
+      ? [['Guest boot time','52 s'],['Compile benchmark','3m 41s'],['Nested paging','through the Hyper-V interface']]
+      : [['Guest boot time','19 s'],['Compile benchmark','1m 12s'],['Nested paging','direct hardware']];
+    el.metrics.innerHTML = m.map(function(x){
+      return '<div class="metric"><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '</div></div>';
+    }).join('');
+    el.hvExplain.innerHTML = on
+      ? '<h3>Hyper-V is on, and it took the hardware</h3>' +
+        '<p>Enabling the Hyper-V platform inserts a hypervisor below Windows at boot. Windows keeps working and keeps looking the same, and it is now a privileged guest rather than the thing running on the metal.</p>' +
+        '<p>VirtualBox can still run, and it no longer gets the processor virtualization extensions for itself, so it goes through the interface Hyper-V provides. Everything works and everything is slower, which is why the complaint is usually reported as the machine feeling sluggish rather than as anything failing.</p>' +
+        '<p>The practical rule for this course: Hyper-V on the laboratory workstations, VirtualBox on your own laptop, and not both on one machine unless you are measuring the difference on purpose.</p>'
+      : '<h3>Hyper-V is off</h3>' +
+        '<p>Windows is on the hardware, and VirtualBox takes the processor virtualization extensions when it starts a guest. This is the arrangement your laptop should be in for the rest of the term.</p>' +
+        '<p>Turn the checkbox on to see what changes, and note that nothing in the picture fails. It just moves.</p>';
+    if(!reduced && hasGsap) window.gsap.from(el.metrics.children, { opacity:0, duration:.3, stagger:.06 });
+  }
+
+  el.hvToggle.addEventListener('change', renderStack);
+
+  buildSwitches();
+  select('external');
+  renderStack();
+})();
+</script>
+</body>
+</html>
