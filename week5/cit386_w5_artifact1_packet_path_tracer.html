@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which rule stopped it. CIT 386 Module 5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Questrial&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F3EF; --card:#FFFFFF; --line:#DED8D2; --ink:#171310;
+    --maroon:#990000; --bar:#800000; --accent:#C00000; --muted:#5A514B;
+    --sub:#D9D9D9; --label:#F2F2F2; --soft:#FBF9F7; --warn:#FFF4F4; --warnline:#E5C4C4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:Questrial,'Century Gothic',Arial,sans-serif;line-height:1.55;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 16px 64px;}
+  header.top{background:var(--maroon);color:#fff;padding:18px 0;margin-bottom:22px;}
+  header.top .wrap{padding-bottom:0;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;}
+  h1{font-size:27px;margin:4px 0 0;font-weight:normal;}
+  .lede{color:var(--muted);font-size:15px;margin:0 0 20px;max-width:74ch;}
+
+  .panel{border:1px solid var(--line);background:var(--card);margin-bottom:16px;}
+  .panel-head{background:var(--sub);color:var(--accent);padding:7px 12px;font-size:11.5px;
+    letter-spacing:.14em;text-transform:uppercase;font-weight:bold;}
+  .panel-body{padding:16px;}
+  .cols{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:start;}
+  @media (max-width:940px){ .cols{grid-template-columns:1fr;} }
+
+  table.rules{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11.5px;}
+  table.rules th{background:var(--bar);color:#fff;text-align:left;padding:6px 8px;font-weight:bold;
+    font-family:Questrial,Arial,sans-serif;font-size:11px;letter-spacing:.06em;text-transform:uppercase;}
+  table.rules td{border-bottom:1px solid var(--line);padding:6px 8px;}
+  tr.rule{transition:none;}
+  tr.rule.skipped td{color:#A79C94;}
+  tr.rule.matched td{background:var(--soft);border-left:3px solid var(--bar);font-weight:bold;}
+  tr.rule.matched.deny td{background:var(--warn);border-left-color:var(--accent);}
+  tr.rule.unreached td{color:#C4BAB2;}
+  tr.rule.dflt td{background:var(--label);}
+  td.act-allow{color:var(--bar);}
+  td.act-deny{color:var(--accent);}
+  .rulenote{font-size:12px;color:var(--muted);margin-top:8px;}
+
+  .packets{display:flex;flex-direction:column;gap:7px;}
+  button.pk{font:inherit;text-align:left;background:var(--card);border:1px solid var(--line);
+    border-left:3px solid var(--line);padding:9px 11px;cursor:pointer;font-size:13.5px;width:100%;}
+  button.pk:hover:not(:disabled){border-color:var(--accent);}
+  button.pk:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  button.pk[aria-pressed="true"]{background:var(--soft);border-left-color:var(--maroon);}
+  button.pk .meta{display:block;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:3px;}
+  button.pk .done{float:right;font-family:'JetBrains Mono',monospace;font-size:11px;}
+  .done.ok{color:var(--bar);} .done.no{color:var(--accent);}
+
+  .predrow{display:flex;gap:9px;align-items:center;margin-top:12px;flex-wrap:wrap;}
+  .pred{display:inline-flex;border:1px solid var(--line);}
+  .pred button{font:inherit;font-size:13px;background:var(--card);border:none;padding:8px 14px;cursor:pointer;color:var(--muted);}
+  .pred button[aria-pressed="true"]{background:var(--bar);color:#fff;}
+  .pred button:focus-visible{outline:3px solid var(--accent);outline-offset:-2px;}
+
+  .verdict{border-left:4px solid var(--accent);background:var(--soft);padding:13px 15px;margin-top:14px;display:none;}
+  .verdict.shown{display:block;}
+  .verdict h3{margin:0 0 6px;font-size:15px;}
+  .verdict p{margin:0 0 8px;font-size:14px;}
+  .verdict p:last-child{margin-bottom:0;}
+  .verdict code{font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--label);padding:1px 5px;}
+
+  .btn{font:inherit;background:var(--maroon);color:#fff;border:1px solid var(--maroon);
+    padding:10px 18px;cursor:pointer;font-size:14px;}
+  .btn:disabled{background:#C9C2BC;border-color:#C9C2BC;cursor:not-allowed;}
+  .btn.ghost{background:transparent;color:var(--maroon);}
+  .btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;}
+  .hint{font-size:13px;color:var(--muted);}
+
+  .statusbar{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center;
+    border:1px solid var(--line);background:var(--card);padding:10px 14px;margin-bottom:18px;}
+  .status-item{font-size:13px;color:var(--muted);}
+  .status-item b{color:var(--ink);font-size:15px;}
+
+  .brief{border-left:4px solid var(--accent);background:var(--soft);padding:12px 14px;margin-bottom:12px;}
+  .brief h2{font-size:16px;margin:0 0 6px;}
+  .brief p{margin:0;font-size:14.5px;}
+  .fixes{display:flex;flex-direction:column;gap:8px;}
+  button.fix{font:inherit;text-align:left;background:var(--card);border:1px solid var(--line);
+    border-left:3px solid var(--line);padding:10px 12px;cursor:pointer;font-size:14px;}
+  button.fix:hover:not(:disabled){border-color:var(--accent);}
+  button.fix:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  button.fix.right{background:var(--soft);border-color:var(--bar);border-left-color:var(--bar);}
+  button.fix.wrong{background:var(--warn);border-color:var(--warnline);border-left-color:var(--accent);}
+  button.fix code{font-family:'JetBrains Mono',monospace;font-size:12px;}
+  footer.note{margin-top:26px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">CIT 386 &middot; Module 5 &middot; Activity 5.1</div>
+    <h1>Which rule stopped it</h1>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="lede">The security group in front of our shared server, with its rules in priority order. Pick a packet, say whether you think it gets through, then watch the rules evaluate one at a time from the lowest priority number down until something matches.</p>
+
+  <div class="statusbar">
+    <div class="status-item">Packets traced <b id="tracedNum">0 of 6</b></div>
+    <div class="status-item">Predictions correct <b id="predNum">0</b></div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <section class="panel">
+        <div class="panel-head">Inbound rules on cit386-shared-nsg</div>
+        <div class="panel-body" style="padding:0;">
+          <table class="rules">
+            <thead><tr><th style="width:64px;">Priority</th><th>Name</th><th>Source</th><th>Port</th><th style="width:66px;">Action</th></tr></thead>
+            <tbody id="ruleBody"></tbody>
+          </table>
+        </div>
+      </section>
+      <p class="rulenote">Rules are evaluated from the lowest priority number upward. The first rule that matches decides the outcome, and nothing below it is consulted. The last three are the defaults every security group carries and cannot be removed.</p>
+    </div>
+
+    <div>
+      <section class="panel">
+        <div class="panel-head">Packets arriving at the server</div>
+        <div class="panel-body">
+          <div class="packets" id="packets"></div>
+          <div class="predrow" id="predRow" style="display:none;">
+            <span style="font-size:13px;color:#5A514B;">Does it get through?</span>
+            <span class="pred" role="group" aria-label="Your prediction">
+              <button type="button" id="predYes" aria-pressed="false">allowed</button>
+              <button type="button" id="predNo" aria-pressed="false">denied</button>
+            </span>
+            <button class="btn" id="traceBtn" disabled>Trace it</button>
+          </div>
+          <p class="hint" id="hint">Choose a packet to trace.</p>
+          <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel" id="briefPanel" style="display:none;">
+    <div class="panel-head">Now fix the rule set</div>
+    <div class="panel-body">
+      <div class="brief">
+        <h2 id="bTitle"></h2>
+        <p id="bText"></p>
+      </div>
+      <div class="fixes" id="fixes"></div>
+      <div class="verdict" id="bVerdict" role="status" aria-live="polite"></div>
+      <div class="actions"><button class="btn ghost" id="bNext" style="display:none;">Next situation</button></div>
+    </div>
+  </section>
+
+  <footer class="note">Nothing is saved. Rule names and addresses are examples shaped like ours, not the live values.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hasGsap = typeof window.gsap !== 'undefined';
+
+  var CAMPUS = '198.51.100.0/24';
+
+  var RULES = [
+    { p:100, name:'AllowSSHFromCampus', src:CAMPUS, srcKind:'campus', port:'22', action:'Allow' },
+    { p:200, name:'DenySSHFromInternet', src:'Internet', srcKind:'any', port:'22', action:'Deny' },
+    { p:300, name:'AllowHTTPFromInternet', src:'Internet', srcKind:'any', port:'80', action:'Allow' },
+    { p:400, name:'AllowSSHAnywhere', src:'Internet', srcKind:'any', port:'22', action:'Allow' },
+    { p:65000, name:'AllowVnetInBound', src:'VirtualNetwork', srcKind:'vnet', port:'any', action:'Allow', dflt:true },
+    { p:65001, name:'AllowAzureLoadBalancerInBound', src:'AzureLoadBalancer', srcKind:'lb', port:'any', action:'Allow', dflt:true },
+    { p:65500, name:'DenyAllInBound', src:'Any', srcKind:'any', port:'any', action:'Deny', dflt:true }
+  ];
+
+  var PACKETS = [
+    { id:'p1', label:'SSH from a campus laboratory machine', meta:'src 198.51.100.42 &middot; tcp/22', src:'campus', port:'22' },
+    { id:'p2', label:'SSH from your home connection', meta:'src 203.0.113.14 &middot; tcp/22', src:'internet', port:'22' },
+    { id:'p3', label:'A visitor loading the web page', meta:'src 198.51.100.9 &middot; tcp/80', src:'campus', port:'80' },
+    { id:'p4', label:'A visitor loading the web page from home', meta:'src 203.0.113.77 &middot; tcp/80', src:'internet', port:'80' },
+    { id:'p5', label:'Remote desktop attempt from the internet', meta:'src 192.0.2.55 &middot; tcp/3389', src:'internet', port:'3389' },
+    { id:'p6', label:'A peer machine on the same virtual network', meta:'src 10.0.0.9 &middot; tcp/5432', src:'vnet', port:'5432' }
+  ];
+
+  function matches(rule, pk){
+    var srcOk = (rule.srcKind === 'any') ||
+                (rule.srcKind === 'campus' && pk.src === 'campus') ||
+                (rule.srcKind === 'vnet' && pk.src === 'vnet') ||
+                (rule.srcKind === 'lb' && pk.src === 'lb');
+    var portOk = (rule.port === 'any') || (rule.port === pk.port);
+    return srcOk && portOk;
+  }
+
+  function trace(pk){
+    for(var i = 0; i < RULES.length; i++){
+      if(matches(RULES[i], pk)) return { at:i, rule:RULES[i], allowed:RULES[i].action === 'Allow' };
+    }
+    return { at:RULES.length - 1, rule:RULES[RULES.length - 1], allowed:false };
+  }
+
+  var NOTES = {
+    p1:'Priority 100 matches on both the source range and the port, and evaluation stops there. Nothing below it is read, including the deny at 200.',
+    p2:'Priority 100 does not match, because your home address is not in the campus range. Priority 200 does match, and it denies. Look at what sits below it: priority 400 would allow this exact packet, and it is never reached. A rule further down the list is not a weaker rule, it is an unread rule.',
+    p3:'Neither of the SSH rules matches on port 80, so evaluation continues to priority 300, which allows web traffic from anywhere.',
+    p4:'The same rule at 300 handles this. Source Internet means any source, including your house, which is what makes a web rule different from an administrative one.',
+    p5:'Nothing in the custom rules mentions 3389, so evaluation runs all the way to the default DenyAllInBound at 65500. Anything you have not explicitly allowed ends up here, which is why an empty security group is a closed door rather than an open one.',
+    p6:'No custom rule matches, and the default AllowVnetInBound at 65000 does. Traffic between machines inside the same virtual network is permitted by default, which surprises people who assume a security group protects a machine from its neighbours.'
+  };
+
+  var BRIEFS = [
+    {
+      title:'Administrators need to work from home',
+      text:'Two staff now work remotely and need SSH from their home connections. Somebody has already added a rule at priority 400 that allows SSH from anywhere, and it has changed nothing at all.',
+      fixes:[
+        { t:'Move the allow rule above the deny, by giving it a priority number lower than 200', ok:true },
+        { t:'Add a second copy of the allow rule at priority 500', ok:false,
+          why:'It will not be read either. Everything below the matching deny at 200 is unreachable for that traffic, however many copies you add.' },
+        { t:'Change the deny at 200 to allow', ok:false,
+          why:'That works and it opens SSH to the entire internet, which is the thing the deny was there to prevent. The requirement was two named people, not everybody.' },
+        { t:'Delete the campus allow rule at 100, since the new rule covers it', ok:false,
+          why:'This makes the situation worse. The deny at 200 would then catch campus traffic too, and everybody loses access.' }
+      ],
+      lesson:'The better answer is narrower still: rather than allowing SSH from anywhere at a low priority, add their home addresses as an allowed source range above the deny. The general point holds either way. In a priority ordered list, position is the decision, and a correct rule in the wrong place does nothing.'
+    },
+    {
+      title:'The database port is exposed',
+      text:'An audit finds that any machine inside the virtual network can reach the database port on this server, including a test machine another team controls. Nothing in the custom rules mentions the database.',
+      fixes:[
+        { t:'Add a deny rule for that port with a priority number below 65000, sourced from the virtual network', ok:true },
+        { t:'Add a deny rule at priority 65100', ok:false,
+          why:'Too late. AllowVnetInBound sits at 65000 and matches first, so a deny after it is never reached.' },
+        { t:'Delete the AllowVnetInBound default rule', ok:false,
+          why:'The three default rules cannot be deleted. They can only be overridden by a custom rule with a lower priority number.' },
+        { t:'Turn off the security group and rely on the database\u2019s own authentication', ok:false,
+          why:'Two controls are better than one, and this removes the outer one entirely. Authentication is not a substitute for not being reachable.' }
+      ],
+      lesson:'Default rules cannot be removed and can always be overridden, which is the whole design. Anything you want stopped inside the virtual network needs a custom rule with a priority below 65000. This is also the answer to why a machine on a shared subnet is not protected from its neighbours by default.'
+    }
+  ];
+
+  var state = { pk:null, pred:null, traced:{}, correct:0, bIdx:0 };
+
+  var el = {
+    ruleBody:document.getElementById('ruleBody'), packets:document.getElementById('packets'),
+    predRow:document.getElementById('predRow'), yes:document.getElementById('predYes'), no:document.getElementById('predNo'),
+    trace:document.getElementById('traceBtn'), hint:document.getElementById('hint'), verdict:document.getElementById('verdict'),
+    traced:document.getElementById('tracedNum'), pred:document.getElementById('predNum'),
+    briefPanel:document.getElementById('briefPanel'), bTitle:document.getElementById('bTitle'),
+    bText:document.getElementById('bText'), fixes:document.getElementById('fixes'),
+    bVerdict:document.getElementById('bVerdict'), bNext:document.getElementById('bNext')
+  };
+
+  function buildRules(){
+    el.ruleBody.innerHTML = '';
+    RULES.forEach(function(r, i){
+      var tr = document.createElement('tr');
+      tr.className = 'rule' + (r.dflt ? ' dflt' : '');
+      tr.dataset.i = i;
+      tr.innerHTML = '<td>' + r.p + '</td><td>' + r.name + '</td><td>' + r.src + '</td><td>' + r.port +
+        '</td><td class="act-' + r.action.toLowerCase() + '">' + r.action + '</td>';
+      el.ruleBody.appendChild(tr);
+    });
+  }
+
+  function clearRuleMarks(){
+    Array.prototype.forEach.call(el.ruleBody.children, function(tr){
+      tr.className = 'rule' + (RULES[+tr.dataset.i].dflt ? ' dflt' : '');
+    });
+  }
+
+  function buildPackets(){
+    el.packets.innerHTML = '';
+    PACKETS.forEach(function(pk){
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'pk'; b.dataset.id = pk.id;
+      b.setAttribute('aria-pressed','false');
+      b.innerHTML = '<span>' + pk.label + '</span><span class="meta">' + pk.meta + '</span>';
+      b.addEventListener('click', function(){ selectPacket(pk.id); });
+      el.packets.appendChild(b);
+    });
+  }
+
+  function selectPacket(id){
+    state.pk = id; state.pred = null;
+    Array.prototype.forEach.call(el.packets.children, function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.id === id));
+    });
+    el.yes.setAttribute('aria-pressed','false');
+    el.no.setAttribute('aria-pressed','false');
+    el.predRow.style.display = 'flex';
+    el.trace.disabled = true;
+    el.verdict.className = 'verdict'; el.verdict.innerHTML = '';
+    el.hint.textContent = state.traced[id] ? 'Already traced. Trace it again if you want to watch the walk.' : 'Commit to a prediction first.';
+    clearRuleMarks();
+  }
+
+  function setPred(v){
+    state.pred = v;
+    el.yes.setAttribute('aria-pressed', String(v === true));
+    el.no.setAttribute('aria-pressed', String(v === false));
+    el.trace.disabled = false;
+  }
+
+  function runTrace(){
+    var pk = PACKETS.filter(function(p){ return p.id === state.pk; })[0];
+    var res = trace(pk);
+    clearRuleMarks();
+
+    var step = function(i){
+      var tr = el.ruleBody.children[i];
+      if(i < res.at){
+        tr.classList.add('skipped');
+      } else if(i === res.at){
+        tr.classList.add('matched');
+        if(!res.allowed) tr.classList.add('deny');
+        for(var j = i + 1; j < RULES.length; j++) el.ruleBody.children[j].classList.add('unreached');
+        finishTrace(pk, res);
+      }
+    };
+
+    if(reduced || !hasGsap){
+      for(var i = 0; i <= res.at; i++) step(i);
+    } else {
+      for(var k = 0; k <= res.at; k++){
+        (function(i){ window.gsap.delayedCall(i * 0.28, function(){ step(i); }); })(k);
+      }
+    }
+  }
+
+  function finishTrace(pk, res){
+    var right = (state.pred === res.allowed);
+    if(!state.traced[pk.id]){
+      state.traced[pk.id] = true;
+      if(right) state.correct++;
+    }
+    el.traced.textContent = Object.keys(state.traced).length + ' of ' + PACKETS.length;
+    el.pred.textContent = String(state.correct);
+    var btn = el.packets.querySelector('[data-id="' + pk.id + '"]');
+    if(!btn.querySelector('.done')){
+      var s = document.createElement('span');
+      s.className = 'done ' + (res.allowed ? 'ok' : 'no');
+      s.textContent = res.allowed ? 'allowed' : 'denied';
+      btn.insertBefore(s, btn.firstChild);
+    }
+
+    el.verdict.innerHTML = '<h3>' + (right ? 'Correct: ' : 'Not quite: ') +
+      (res.allowed ? 'allowed' : 'denied') + ' by <code>' + res.rule.name + '</code> at priority ' + res.rule.p + '</h3>' +
+      '<p>' + NOTES[pk.id] + '</p>';
+    el.verdict.classList.add('shown');
+    el.hint.textContent = '';
+
+    if(Object.keys(state.traced).length === PACKETS.length && el.briefPanel.style.display === 'none'){
+      el.briefPanel.style.display = '';
+      renderBrief();
+      if(!reduced && hasGsap) window.gsap.from(el.briefPanel, { opacity:0, y:10, duration:.4 });
+    }
+  }
+
+  function renderBrief(){
+    var b = BRIEFS[state.bIdx];
+    el.bTitle.textContent = b.title;
+    el.bText.textContent = b.text;
+    el.fixes.innerHTML = '';
+    b.fixes.forEach(function(f){
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'fix'; btn.innerHTML = f.t;
+      btn.addEventListener('click', function(){ pickFix(f, btn); });
+      el.fixes.appendChild(btn);
+    });
+    el.bVerdict.className = 'verdict'; el.bVerdict.innerHTML = '';
+    el.bNext.style.display = 'none';
+  }
+
+  function pickFix(f, btn){
+    var b = BRIEFS[state.bIdx];
+    Array.prototype.forEach.call(el.fixes.children, function(x){ x.disabled = true; });
+    btn.classList.add(f.ok ? 'right' : 'wrong');
+    if(!f.ok){
+      Array.prototype.forEach.call(el.fixes.children, function(x, i){ if(b.fixes[i].ok) x.classList.add('right'); });
+    }
+    var html = '<h3>' + (f.ok ? 'That is the change.' : 'That will not do it.') + '</h3>';
+    if(!f.ok && f.why) html += '<p>' + f.why + '</p>';
+    html += '<p>' + b.lesson + '</p>';
+    el.bVerdict.innerHTML = html;
+    el.bVerdict.classList.add('shown');
+    if(state.bIdx < BRIEFS.length - 1){
+      el.bNext.style.display = '';
+      el.bNext.focus();
+    }
+  }
+
+  el.yes.addEventListener('click', function(){ setPred(true); });
+  el.no.addEventListener('click', function(){ setPred(false); });
+  el.trace.addEventListener('click', runTrace);
+  el.bNext.addEventListener('click', function(){ state.bIdx++; renderBrief(); });
+
+  buildRules();
+  buildPackets();
+})();
+</script>
+</body>
+</html>

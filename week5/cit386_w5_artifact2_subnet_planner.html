@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carving up the address space. CIT 386 Module 5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Questrial&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F3EF; --card:#FFFFFF; --line:#DED8D2; --ink:#171310;
+    --maroon:#990000; --bar:#800000; --accent:#C00000; --muted:#5A514B;
+    --sub:#D9D9D9; --label:#F2F2F2; --soft:#FBF9F7; --warn:#FFF4F4; --warnline:#E5C4C4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:Questrial,'Century Gothic',Arial,sans-serif;line-height:1.55;}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 16px 64px;}
+  header.top{background:var(--maroon);color:#fff;padding:18px 0;margin-bottom:22px;}
+  header.top .wrap{padding-bottom:0;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.9;}
+  h1{font-size:27px;margin:4px 0 0;font-weight:normal;}
+  .lede{color:var(--muted);font-size:15px;margin:0 0 20px;max-width:74ch;}
+
+  .panel{border:1px solid var(--line);background:var(--card);margin-bottom:16px;}
+  .panel-head{background:var(--sub);color:var(--accent);padding:7px 12px;font-size:11.5px;
+    letter-spacing:.14em;text-transform:uppercase;font-weight:bold;}
+  .panel-body{padding:16px;}
+
+  .vnetbar{position:relative;height:46px;border:1px solid var(--line);background:var(--label);overflow:hidden;}
+  .seg{position:absolute;top:0;height:100%;background:var(--bar);border-right:1px solid #fff;
+    color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 4px;overflow:hidden;}
+  .seg.clash{background:var(--accent);}
+  .seg.tiny{padding:3px 1px;}
+  .scale{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;color:var(--muted);margin-top:4px;}
+
+  table.alloc{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px;}
+  table.alloc th{background:var(--bar);color:#fff;text-align:left;padding:7px 9px;font-size:11px;
+    letter-spacing:.06em;text-transform:uppercase;}
+  table.alloc td{border:1px solid var(--line);padding:7px 9px;vertical-align:middle;}
+  table.alloc td.m{font-family:'JetBrains Mono',monospace;font-size:12px;}
+  tr.bad td{background:var(--warn);}
+  tr.good td:first-child{border-left:3px solid var(--bar);}
+  select{font:inherit;font-family:'JetBrains Mono',monospace;font-size:12px;
+    padding:5px 6px;border:1px solid var(--line);background:var(--card);color:var(--ink);}
+  select:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .need{font-size:11.5px;color:var(--muted);display:block;}
+  .flag{font-family:'JetBrains Mono',monospace;font-size:11px;}
+  .flag.ok{color:var(--bar);} .flag.no{color:var(--accent);}
+
+  .btn{font:inherit;background:var(--maroon);color:#fff;border:1px solid var(--maroon);
+    padding:10px 18px;cursor:pointer;font-size:14px;}
+  .btn.ghost{background:transparent;color:var(--maroon);}
+  .btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;}
+  .hint{font-size:13px;color:var(--muted);}
+
+  .verdict{border-left:4px solid var(--accent);background:var(--soft);padding:13px 15px;margin-top:14px;display:none;}
+  .verdict.shown{display:block;}
+  .verdict h3{margin:0 0 6px;font-size:15px;}
+  .verdict p{margin:0 0 8px;font-size:14px;}
+  .verdict p:last-child{margin-bottom:0;}
+  .verdict code{font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--label);padding:1px 5px;}
+  .verdict ul{margin:6px 0 0 20px;padding:0;}
+  .verdict li{font-size:14px;margin-bottom:4px;}
+
+  .mathbox{background:var(--ink);color:#EDE7E1;font-family:'JetBrains Mono',monospace;font-size:12px;
+    padding:13px 15px;margin-top:14px;white-space:pre-wrap;}
+  .mathbox .k{color:#F0D7A0;}
+  .mathbox .no{color:#E8A0A0;}
+  .mathbox .ok{color:#9FC3AE;}
+  footer.note{margin-top:26px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">CIT 386 &middot; Module 5 &middot; Activity 5.2</div>
+    <h1>Carving up the address space</h1>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="lede">One virtual network, four departments, and a rule most people meet the hard way: a subnet in Azure does not give you every address inside it. Allocate a prefix and a starting address to each department so that all four fit, none overlap, and each has room for the growth stated.</p>
+
+  <section class="panel">
+    <div class="panel-head">Virtual network 10.20.0.0/16, Miami office</div>
+    <div class="panel-body">
+      <div class="vnetbar" id="bar"></div>
+      <div class="scale">
+        <span>10.20.0.0</span><span>10.20.64.0</span><span>10.20.128.0</span><span>10.20.192.0</span><span>10.20.255.255</span>
+      </div>
+
+      <table class="alloc">
+        <thead>
+          <tr><th style="width:26%;">Subnet</th><th style="width:15%;">Prefix</th><th style="width:24%;">Starts at</th>
+              <th style="width:17%;">Usable</th><th>Check</th></tr>
+        </thead>
+        <tbody id="allocBody"></tbody>
+      </table>
+
+      <div class="actions">
+        <button class="btn" id="checkBtn">Check the plan</button>
+        <button class="btn ghost" id="resetBtn">Clear it</button>
+        <span class="hint" id="hint">Every department needs room for today plus the growth in its row.</span>
+      </div>
+
+      <div class="mathbox" id="math"></div>
+      <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">Why the usable count is not what you expect</div>
+    <div class="panel-body">
+      <p style="margin:0 0 10px;max-width:74ch;">Azure takes five addresses out of every subnet before you get any. The first is the network address and the last is the broadcast address, which you would expect from any network. The other three are taken by the platform for the default gateway and for its own name resolution and configuration services.</p>
+      <p style="margin:0 0 10px;max-width:74ch;">So a <code style="font-family:'JetBrains Mono',monospace;background:#F2F2F2;padding:1px 5px;">/27</code> holds 32 addresses and gives you 27 machines. A department of 20 that expects to reach 30 does not fit, and the person who sized it did the arithmetic correctly for a physical network and got it wrong here. The smallest subnet permitted is a <code style="font-family:'JetBrains Mono',monospace;background:#F2F2F2;padding:1px 5px;">/29</code>, which leaves three usable addresses.</p>
+      <p style="margin:0;max-width:74ch;">A subnet cannot be resized once machines are attached to it without moving those machines, so the growth allowance is not a nicety. It is the difference between a change request and a migration.</p>
+    </div>
+  </section>
+
+  <footer class="note">Nothing is saved. The address plan here is an exercise, not our live network.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hasGsap = typeof window.gsap !== 'undefined';
+
+  var VNET_SIZE = 65536; // /16
+  var RESERVED = 5;
+
+  var SUBNETS = [
+    { id:'staff',  name:'Staff workstations', today:500, growth:'50 percent', need:750 },
+    { id:'guest',  name:'Guest wireless',     today:200, growth:'50 percent', need:300 },
+    { id:'servers',name:'Servers',            today:100, growth:'50 percent', need:150 },
+    { id:'mgmt',   name:'Management',         today:20,  growth:'50 percent', need:30 }
+  ];
+
+  var PREFIXES = [22,23,24,25,26,27,28,29];
+  function sizeOf(p){ return Math.pow(2, 32 - p); }
+  function usableOf(p){ return sizeOf(p) - RESERVED; }
+  function addrToStr(off){
+    var third = Math.floor(off / 256), fourth = off % 256;
+    return '10.20.' + third + '.' + fourth;
+  }
+
+  var state = {};
+  SUBNETS.forEach(function(s){ state[s.id] = { prefix:'', start:'' }; });
+
+  var el = {
+    body:document.getElementById('allocBody'), bar:document.getElementById('bar'),
+    check:document.getElementById('checkBtn'), reset:document.getElementById('resetBtn'),
+    verdict:document.getElementById('verdict'), math:document.getElementById('math'),
+    hint:document.getElementById('hint')
+  };
+
+  function startOptions(prefix){
+    var out = [], step = sizeOf(prefix);
+    for(var off = 0; off < VNET_SIZE; off += step){
+      out.push(off);
+      if(out.length >= 64) break;
+    }
+    return out;
+  }
+
+  function build(){
+    el.body.innerHTML = '';
+    SUBNETS.forEach(function(s){
+      var tr = document.createElement('tr');
+      tr.dataset.id = s.id;
+      tr.innerHTML =
+        '<td>' + s.name + '<span class="need">' + s.today + ' today, plan for ' + s.growth + ' growth</span></td>' +
+        '<td><select data-role="prefix" aria-label="Prefix for ' + s.name + '"><option value="">choose</option>' +
+          PREFIXES.map(function(p){ return '<option value="' + p + '">/' + p + '</option>'; }).join('') +
+        '</select></td>' +
+        '<td><select data-role="start" aria-label="Start address for ' + s.name + '" disabled><option value="">choose a prefix first</option></select></td>' +
+        '<td class="m" data-role="usable">&mdash;</td>' +
+        '<td data-role="check">&mdash;</td>';
+      el.body.appendChild(tr);
+
+      var ps = tr.querySelector('[data-role="prefix"]');
+      var ss = tr.querySelector('[data-role="start"]');
+      ps.addEventListener('change', function(){
+        state[s.id].prefix = ps.value;
+        state[s.id].start = '';
+        if(ps.value){
+          var opts = startOptions(+ps.value);
+          ss.innerHTML = '<option value="">choose</option>' + opts.map(function(o){
+            return '<option value="' + o + '">' + addrToStr(o) + '/' + ps.value + '</option>';
+          }).join('');
+          ss.disabled = false;
+          tr.querySelector('[data-role="usable"]').textContent = usableOf(+ps.value) + ' hosts';
+        } else {
+          ss.innerHTML = '<option value="">choose a prefix first</option>';
+          ss.disabled = true;
+          tr.querySelector('[data-role="usable"]').textContent = '\u2014';
+        }
+        tr.className = '';
+        tr.querySelector('[data-role="check"]').innerHTML = '&mdash;';
+        drawBar();
+      });
+      ss.addEventListener('change', function(){
+        state[s.id].start = ss.value;
+        drawBar();
+      });
+    });
+    drawBar();
+  }
+
+  function allocations(){
+    return SUBNETS.map(function(s){
+      var st = state[s.id];
+      if(st.prefix === '' || st.start === '') return null;
+      var start = +st.start, size = sizeOf(+st.prefix);
+      return { s:s, start:start, end:start + size - 1, size:size, prefix:+st.prefix };
+    });
+  }
+
+  function drawBar(){
+    el.bar.innerHTML = '';
+    var allocs = allocations();
+    var placed = [];
+    allocs.forEach(function(a){
+      if(!a) return;
+      var clash = placed.some(function(b){ return a.start <= b.end && b.start <= a.end; });
+      placed.push(a);
+      var d = document.createElement('div');
+      d.className = 'seg' + (clash ? ' clash' : '');
+      var leftPct = (a.start / VNET_SIZE) * 100;
+      var widthPct = Math.max((a.size / VNET_SIZE) * 100, 0.6);
+      d.style.left = leftPct + '%';
+      d.style.width = widthPct + '%';
+      if(widthPct < 4) d.classList.add('tiny');
+      d.textContent = widthPct >= 4 ? (a.s.name.split(' ')[0] + ' /' + a.prefix) : '/' + a.prefix;
+      d.title = a.s.name + ' ' + addrToStr(a.start) + '/' + a.prefix;
+      el.bar.appendChild(d);
+      if(!reduced && hasGsap) window.gsap.from(d, { opacity:0, duration:.25 });
+    });
+  }
+
+  function check(){
+    var allocs = allocations();
+    var problems = [], lines = [], allOk = true;
+
+    SUBNETS.forEach(function(s, i){
+      var tr = el.body.children[i];
+      var a = allocs[i];
+      var cell = tr.querySelector('[data-role="check"]');
+      if(!a){
+        allOk = false;
+        tr.className = 'bad';
+        cell.innerHTML = '<span class="flag no">not allocated</span>';
+        problems.push(s.name + ' has no allocation yet.');
+        lines.push('<span class="k">' + s.name + '</span>  <span class="no">not allocated</span>');
+        return;
+      }
+      var usable = usableOf(a.prefix);
+      var capOk = usable >= s.need;
+      var fits = a.end < VNET_SIZE;
+      var overlapWith = null;
+      allocs.forEach(function(b, j){
+        if(!b || j === i) return;
+        if(a.start <= b.end && b.start <= a.end) overlapWith = SUBNETS[j].name;
+      });
+
+      var ok = capOk && fits && !overlapWith;
+      if(!ok) allOk = false;
+      tr.className = ok ? 'good' : 'bad';
+      cell.innerHTML = ok ? '<span class="flag ok">fits</span>'
+        : '<span class="flag no">' + (!capOk ? 'too small' : (overlapWith ? 'overlaps' : 'outside the network')) + '</span>';
+
+      lines.push('<span class="k">' + s.name + '</span>  ' + addrToStr(a.start) + '/' + a.prefix +
+        '  size ' + a.size + '  minus ' + RESERVED + ' reserved = ' +
+        (capOk ? '<span class="ok">' + usable + ' usable, needs ' + s.need + '</span>'
+               : '<span class="no">' + usable + ' usable, needs ' + s.need + '</span>'));
+
+      if(!capOk) problems.push(s.name + ' has ' + usable + ' usable addresses and needs ' + s.need +
+        '. A /' + a.prefix + ' holds ' + a.size + ' addresses, and five of them are taken before you get any.');
+      if(overlapWith) problems.push(s.name + ' overlaps ' + overlapWith + '. Two subnets cannot share addresses in the same virtual network.');
+      if(!fits) problems.push(s.name + ' runs past the end of 10.20.0.0/16.');
+    });
+
+    el.math.innerHTML = lines.join('\n');
+
+    var used = allocs.filter(Boolean).reduce(function(n, a){ return n + a.size; }, 0);
+    if(allOk){
+      var minimal = SUBNETS.reduce(function(n, s){
+        var p = 29;
+        while(p >= 22 && usableOf(p) < s.need) p--;
+        return n + sizeOf(p);
+      }, 0);
+      var html = '<h3>The plan works</h3>' +
+        '<p>All four fit inside the network, none overlap, and each has room for the growth stated.</p>' +
+        '<p>You allocated ' + used.toLocaleString() + ' addresses out of 65,536. The tightest arrangement that still meets the requirements uses ' +
+        minimal.toLocaleString() + '. Space is not scarce here, so a little slack is fine, and allocating in descending size order keeps the free space in one block rather than in gaps you cannot use later.</p>' +
+        '<p>Two things to carry into your diagram for Assignment 5.1: write the prefix next to every subnet, and write the usable count rather than the total. The second number is the one somebody will plan against.</p>';
+      el.verdict.innerHTML = html;
+    } else {
+      el.verdict.innerHTML = '<h3>Not yet</h3><ul><li>' + problems.join('</li><li>') + '</li></ul>' +
+        '<p>Read the arithmetic above. Every line shows the size of the block, the five addresses taken off it, and what is left against what the department needs.</p>';
+    }
+    el.verdict.classList.add('shown');
+    if(!reduced && hasGsap) window.gsap.from(el.verdict, { opacity:0, y:6, duration:.3 });
+    drawBar();
+  }
+
+  el.check.addEventListener('click', check);
+  el.reset.addEventListener('click', function(){
+    SUBNETS.forEach(function(s){ state[s.id] = { prefix:'', start:'' }; });
+    el.verdict.className = 'verdict'; el.verdict.innerHTML = '';
+    el.math.innerHTML = '';
+    build();
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>
